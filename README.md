@@ -10,12 +10,12 @@ A plugin extension for the [Cesium for Unreal](https://github.com/CesiumGS/cesiu
 
 ## Features
 
-- ✅ Parsing of `.osm.pbf` files to extract street-lighting data.
+- ⌛ Parsing of `.osm.pbf` files to extract street-lighting data.
 - ⌛ Parsing of `.parquet` files to extract street-lighting data.
 - ⌛ Parsing of `.gol` files to extract street-lighting data.
 - ⌛ HTTP API to fetch street-lighting data from OSM or Overpass.
 - ⌛ Independent height adjustment per street-light.
-- ✅ Customisable global lighting parameters.
+- ⌛ Customisable global lighting parameters.
 - ⌛ LOD selection.
 - ⌛ Customizable lighting parameters per LOD.
 
@@ -64,4 +64,5 @@ cd ..
 ## License
 
 See the [MIT LICENCE](LICENSE.md) file for details.
+
 
