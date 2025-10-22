@@ -97,3 +97,15 @@ Plugins/Developer/RiderLink/*
 _vcpkg/
 
 /cesium-request-cache.*
+
+# GIS files
+*.geojson
+*.kml
+*.kmz
+*.gpx
+*.osm
+*.o5m
+*.osm.bz2
+*.osm.pbf
+*.shp
+*.gol

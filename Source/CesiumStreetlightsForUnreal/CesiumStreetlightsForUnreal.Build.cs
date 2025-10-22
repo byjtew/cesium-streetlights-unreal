@@ -1,5 +1,5 @@
-﻿using System;
-using System.IO;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 using UnrealBuildTool;
 
 public class CesiumStreetlightsForUnreal : ModuleRules
@@ -8,26 +8,48 @@ public class CesiumStreetlightsForUnreal : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		var ThirdPartyDirectory = Path.Combine(ModuleDirectory, "ThirdParty");
-		PublicIncludePaths.Add(Path.Combine(ThirdPartyDirectory, "include"));
-		PublicAdditionalLibraries.AddRange(Directory.GetFiles(Path.Combine(ThirdPartyDirectory, "lib"), "*.lib"));
-		foreach (var dll in Directory.GetFiles(Path.Combine(ThirdPartyDirectory, "bin"), "*.dll"))
-		{
-			RuntimeDependencies.Add(Path.Combine("$(BinaryOutputDir)", Path.GetFileName(dll)), dll);
-		}
-
-		PublicDependencyModuleNames.AddRange([
-			"Core",
-			"Engine", 
-			"CesiumStreetlightsForUnreal"
-		]);
+		PublicIncludePaths.AddRange(
+			new string[] {
+				// ... add public include paths required here ...
+			}
+			);
+				
 		
-		PrivateDependencyModuleNames.AddRange([
-			"CoreUObject",
-			"Engine",
-			"Slate",
-			"SlateCore",
-			"CesiumRuntime",
-		]);
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				// ... add other private include paths required here ...
+			}
+			);
+			
+		
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CesiumRuntime"
+				// ... add other public dependencies that you statically link with here ...
+			}
+			);
+			
+		
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"CoreUObject",
+				"Engine",
+				"Slate",
+				"SlateCore",
+				"Geodesk"
+				// ... add private dependencies that you statically link with here ...	
+			}
+			);
+		
+		
+		DynamicallyLoadedModuleNames.AddRange(
+			new string[]
+			{
+				// ... add any modules that your module loads dynamically here ...
+			}
+			);
 	}
 }
