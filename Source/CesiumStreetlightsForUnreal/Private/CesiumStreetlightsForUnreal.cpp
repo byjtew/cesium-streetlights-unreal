@@ -1,18 +1,22 @@
-﻿#include "CesiumStreetlightsForUnreal.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CesiumStreetlightsForUnreal.h"
 
 #define LOCTEXT_NAMESPACE "FCesiumStreetlightsForUnrealModule"
 
+DEFINE_LOG_CATEGORY(LogCesiumStreetlights);
+
 void FCesiumStreetlightsForUnrealModule::StartupModule()
 {
-  // This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 }
 
 void FCesiumStreetlightsForUnrealModule::ShutdownModule()
 {
-  // This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-  // we call this function before unloading the module.
+	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
+	// we call this function before unloading the module.
 }
 
 #undef LOCTEXT_NAMESPACE
-
+	
 IMPLEMENT_MODULE(FCesiumStreetlightsForUnrealModule, CesiumStreetlightsForUnreal)

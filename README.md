@@ -12,17 +12,23 @@ A plugin extension for the [Cesium for Unreal](https://github.com/CesiumGS/cesiu
 
 - ⌛ Parsing of `.osm.pbf` files to extract street-lighting data.
 - ⌛ Parsing of `.parquet` files to extract street-lighting data.
-- ⌛ Parsing of `.gol` files to extract street-lighting data.
+- ✅ Parsing of `.gol` files to extract street-lighting data.
 - ⌛ HTTP API to fetch street-lighting data from OSM or Overpass.
 - ⌛ Independent height adjustment per street-light.
-- ⌛ Customisable global lighting parameters.
+- ✅ Customisable light style.
 - ⌛ LOD selection.
 - ⌛ Customizable lighting parameters per LOD.
 
+## Data-sources:
+- ✅ Geodesk `.gol` files ([ref](https://www.geodesk.com/))
+- ⌛ GeoJSON files
+- ⌛ OpenStreetMap `.osm.pbf` files
+- ⌛ OpenStreetMap Overpass API
+
 ### Editor specific
 
+- ✅ Add static streetlights in a specified radius from a geolocation.
 - ⌛ Add static streetlights in a specified bounding-box area.
-- ⌛ Add static streetlights in a specified radius from a geolocation.
 
 ### Runtime specific
 
@@ -30,39 +36,13 @@ A plugin extension for the [Cesium for Unreal](https://github.com/CesiumGS/cesiu
 
 ## Installation from a release
 
+You can simply download the latest release and copy the `CesiumStreetlightsForUnreal` folder into the `Plugins` folder of your Unreal project/engine.
+
+## Installation from Fab
+
 > [!NOTE]
-> To be filled in later.
-
-## Installation from source
-
-### ThirdParty libraries
-
-<details>
-<summary>On Windows:</summary>
-```shell
-cd Source/ThirdParty
-git clone https://github.com/Microsoft/vcpkg.git _vcpkg
-cd _vcpkg
-./bootstrap-vcpkg.bat
-cd ..
-./_vcpkg/vcpkg.exe install --x-install-root=. --triplet=x64-windows
-```
-</details>
-
-<details>
-<summary>On Linux:</summary>
-```shell
-cd Source/ThirdParty
-git clone https://github.com/Microsoft/vcpkg.git _vcpkg
-cd _vcpkg
-./bootstrap-vcpkg.sh
-cd ..
-./_vcpkg/vcpkg install --x-install-root=. --triplet=x64-linux
-```
-</details>
+> Not available yet.
 
 ## License
 
 See the [MIT LICENCE](LICENSE.md) file for details.
-
-
