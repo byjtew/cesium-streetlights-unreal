@@ -118,42 +118,6 @@ void FStreetlightStyleConfiguration::Preset_Railway()
 	CastShadows            = true;
 }
 
-FString FStreetlightStyleConfiguration::GetGeodeskRequest() const
-{
-	FString goql = "w";
-	for (int32 i = 0; i < Tags.Num(); i++)
-	{
-		const FTagValuesArray& values_array = Tags[i];
-		goql += "[" + values_array.Key;
-		if (not values_array.Values.IsEmpty())
-		{
-			goql += "=";
-			for (int32 j = 0; j < values_array.Values.Num(); j++)
-			{
-				const FString& v = values_array.Values[j];
-				goql += v;
-
-				if (j < values_array.Values.Num() - 1)
-				{
-					goql += ",";
-				}
-			}
-
-			if (i < Tags.Num() - 1)
-			{
-				goql += ",";
-			}
-		}
-		goql += "]";
-
-
-		if (i < Tags.Num() - 1)
-		{
-			goql += ",";
-		}
-	}
-	return goql;
-}
 
 FColor FStreetlightStyleConfiguration::GetLightColor() const
 {

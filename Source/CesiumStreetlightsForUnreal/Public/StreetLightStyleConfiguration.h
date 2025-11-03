@@ -40,7 +40,6 @@ public:
 	void Preset_Alley();
 	void Preset_Railway();
 
-	FString GetGeodeskRequest() const;
 	FColor  GetLightColor() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cesium Streetlights")

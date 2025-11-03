@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "StreetlightStyleConfiguration.h"
-#include "CesiumStreetlightsGeodeskVolumeActor.generated.h"
+#include "CesiumStreetlightsVolumeActor.generated.h"
 
 
 class ACesiumStreetlightsVolumeActor;
@@ -43,7 +43,7 @@ public:
 	UFUNCTION(
 		CallInEditor, BlueprintCallable,
 		Category = "CesiumStreetlights",
-		meta=(ToolTip="Update the style of all currently spawned streetlights to match the first style configuration.")
+		meta=(ToolTip="Update the style of all currently spawned streetlights to match the style configuration.")
 	)
 	void UpdateCurrentLightsStyle();
 
@@ -59,12 +59,6 @@ public:
 
 	UPROPERTY(
 		EditAnywhere, BlueprintReadWrite,
-		Category="Cesium Streetlights"
-	)
-	FFilePath GolFilepath;
-
-	UPROPERTY(
-		EditAnywhere, BlueprintReadWrite,
 		Category="Cesium Streetlights",
 		meta=(ToolTip="Radius in meters around the owning actor in which to spawn the streetlights", ClampMin="0", UIMin="0", Units=Meters)
 	)
@@ -73,27 +67,14 @@ public:
 	UPROPERTY(
 		EditAnywhere, BlueprintReadWrite,
 		Category="Cesium Streetlights",
-		meta=(ToolTip="Style configurations to apply to streetlights in this volume. The priority will follow the order of this array.")
+		meta=(ToolTip="Style configuration to apply to streetlights in this volume.")
 	)
-	TArray<FStreetlightStyleConfiguration> StyleConfigurations = { FStreetlightStyleConfiguration() };
+	FStreetlightStyleConfiguration StyleConfiguration;
 
 	UPROPERTY()
 	TArray<UCesiumStreetlightComponent*> SpawnedStreetlights;
 
 protected:
-	struct FGeodeskRequestsConfiguration
-	{
-		FString GolFilepath;
-
-		TArray<FString> GoqlRequests;
-
-		/**
-		 * Optional: the origin [longitude,latitude] (in degrees) and radius (in meters) of the area.
-		 */
-		TOptional<TTuple<FVector2d, double>> OriginAndRadius;
-	};
-
-protected:
-	UCesiumStreetlightComponent*   SpawnStreetlightComponent() const;
-	static TArray<TArray<FVector>> LoadGeoPositionsFromGolFile(FGeodeskRequestsConfiguration requests);
+	class UCesiumStreetlightsDataSource* FindDataSourceComponent() const;
+	UCesiumStreetlightComponent*                SpawnStreetlightComponent() const;
 };

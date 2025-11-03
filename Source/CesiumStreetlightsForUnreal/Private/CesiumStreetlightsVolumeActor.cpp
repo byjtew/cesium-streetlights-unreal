@@ -1,10 +1,11 @@
-﻿#include "CesiumStreetlightsGeodeskVolumeActor.h"
+﻿#include "CesiumStreetlightsVolumeActor.h"
 
 #include <random>
 
 #include "Cesium3DTileset.h"
 #include "CesiumStreetlightComponent.h"
 #include "CesiumStreetlightsForUnreal.h"
+#include "CesiumStreetlightsDataSource.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "internal/CesiumExtensions.h"
 #include "GeodeskImports.h"
@@ -130,26 +131,6 @@ namespace
 			return jittered_positions;
 		}
 	};
-
-	static void ParsePointsFromFeatures(const geodesk::Features& features, const std::function<void(FVector)>& for_each_position)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UCesiumStreetlightsGeodeskVolumeComponent::ParsePointsFromFeatures);
-
-		for (const geodesk::Feature& feature : features)
-		{
-			if (feature.isNode())
-			{
-				for_each_position(FVector(feature.lon(), feature.lat(), 0.0));
-			}
-			else if (feature.isWay())
-			{
-				for (const geodesk::Node& node : feature.nodes())
-				{
-					for_each_position(FVector(node.lon(), node.lat(), 0.0));
-				}
-			}
-		}
-	}
 }
 
 
@@ -217,12 +198,13 @@ void ACesiumStreetlightsGeodeskVolumeActor::Generate()
 		return;
 	}
 
-	if (StyleConfigurations.IsEmpty())
+	UCesiumStreetlightsDataSource* data_source = FindDataSourceComponent();
+	if (not data_source)
 	{
 		UE_LOG(
 			LogCesiumStreetlights,
 			Warning,
-			TEXT("No StyleConfigurations assigned to CesiumStreetlightsGeodeskVolumeComponent on actor %s"),
+			TEXT("No DataSource assigned to CesiumStreetlightsGeodeskVolumeActor %s"),
 			*GetName()
 		);
 		return;
@@ -252,27 +234,13 @@ void ACesiumStreetlightsGeodeskVolumeActor::Generate()
 
 	const FVector geo_origin = georeference->TransformUnrealPositionToLongitudeLatitudeHeight(GetActorLocation());
 
-	auto generate_lambda = [self = this, world, georeference, geo_origin]()
+	auto generate_lambda = [self = this, georeference, geo_origin](FCesiumStreetlightsRequestResult&& result) mutable
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UCesiumStreetlightsGeodeskVolumeComponent::Generate);
 
-		FGeodeskRequestsConfiguration requests_config;
+		const FStreetlightStyleConfiguration& style        = self->StyleConfiguration;
+		TArray<FVector>&                      geopositions = result.Geolocations;
 		{
-			requests_config.GolFilepath     = self->GolFilepath.FilePath;
-			requests_config.OriginAndRadius = {FVector2d(geo_origin.X, geo_origin.Y), self->Radius};
-			for (const auto& style : self->StyleConfigurations)
-			{
-				requests_config.GoqlRequests.Add(style.GetGeodeskRequest());
-			}
-		}
-
-		TArray<TArray<FVector>> geopositions_by_style = LoadGeoPositionsFromGolFile(requests_config);
-		for (int16 i = 0; i < self->StyleConfigurations.Num(); ++i)
-		{
-			if (not geopositions_by_style.IsValidIndex(i)) { continue; }
-
-			const FStreetlightStyleConfiguration& style        = self->StyleConfigurations[i];
-			TArray<FVector>&                      geopositions = geopositions_by_style[i];
 			{
 				FilterGeoPositionsByDistanceToOrigin::InPlace(geopositions, geo_origin, self->Radius);
 			}
@@ -355,10 +323,26 @@ void ACesiumStreetlightsGeodeskVolumeActor::Generate()
 		self->Modify();
 	};
 
-	AsyncTask(
-		ENamedThreads::Type::AnyThread,
-		generate_lambda
-	);
+
+	FCesiumStreetlightsRequestConfiguration request_configuration;
+	{
+		request_configuration.Origin  = FVector2d(geo_origin.X, geo_origin.Y);
+		request_configuration.Radius  = Radius;
+		request_configuration.OsmTags = StyleConfiguration.Tags;
+	}
+
+	auto on_results_lambda = [self=this, generate_lambda](FCesiumStreetlightsRequestResult&& result) mutable
+	{
+		AsyncTask(
+			ENamedThreads::Type::AnyThread,
+			[self, result = std::move(result), generate_lambda]() mutable
+			{
+				generate_lambda(std::move(result));
+			}
+		);
+	};
+
+	data_source->AsyncRequest(ENamedThreads::Type::AnyThread, request_configuration, on_results_lambda);
 }
 
 void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
@@ -368,18 +352,19 @@ void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
 		UE_LOG(
 			LogCesiumStreetlights,
 			Warning,
-			TEXT("No GroundTileset assigned to CesiumStreetlightsGeodeskVolumeComponent on actor %s"),
+			TEXT("No GroundTileset assigned to CesiumStreetlightsGeodeskVolumeActor %s"),
 			*GetName()
 		);
 		return;
 	}
 
-	if (StyleConfigurations.IsEmpty())
+	UCesiumStreetlightsDataSource* data_source = FindDataSourceComponent();
+	if (not data_source)
 	{
 		UE_LOG(
 			LogCesiumStreetlights,
 			Warning,
-			TEXT("No StyleConfigurations assigned to CesiumStreetlightsGeodeskVolumeComponent on actor %s"),
+			TEXT("No DataSource assigned to CesiumStreetlightsGeodeskVolumeActor %s"),
 			*GetName()
 		);
 		return;
@@ -391,7 +376,7 @@ void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
 		UE_LOG(
 			LogCesiumStreetlights,
 			Warning,
-			TEXT("No World found for CesiumStreetlightsGeodeskVolumeComponent")
+			TEXT("No World found for CesiumStreetlightsGeodeskVolumeActor")
 		);
 		return;
 	}
@@ -402,34 +387,20 @@ void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
 		UE_LOG(
 			LogCesiumStreetlights,
 			Warning,
-			TEXT("No CesiumGeoreference found in World for CesiumStreetlightsGeodeskVolumeComponent")
+			TEXT("No CesiumGeoreference found in World for CesiumStreetlightsGeodeskVolumeActor")
 		);
 		return;
 	}
 
 	const FVector geo_origin = georeference->TransformUnrealPositionToLongitudeLatitudeHeight(GetActorLocation());
 
-	auto generate_lambda = [self = this, world, georeference, geo_origin]()
+	auto generate_lambda = [self = this, georeference, geo_origin](FCesiumStreetlightsRequestResult&& result) mutable
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UCesiumStreetlightsGeodeskVolumeComponent::Generate);
 
-		FGeodeskRequestsConfiguration requests_config;
+		const FStreetlightStyleConfiguration& style        = self->StyleConfiguration;
+		TArray<FVector>&                      geopositions = result.Geolocations;
 		{
-			requests_config.GolFilepath     = self->GolFilepath.FilePath;
-			requests_config.OriginAndRadius = {FVector2d(geo_origin.X, geo_origin.Y), self->Radius};
-			for (const auto& style : self->StyleConfigurations)
-			{
-				requests_config.GoqlRequests.Add(style.GetGeodeskRequest());
-			}
-		}
-
-		TArray<TArray<FVector>> geopositions_by_style = LoadGeoPositionsFromGolFile(requests_config);
-		for (int16 i = 0; i < self->StyleConfigurations.Num(); ++i)
-		{
-			if (not geopositions_by_style.IsValidIndex(i)) { continue; }
-
-			const FStreetlightStyleConfiguration& style        = self->StyleConfigurations[i];
-			TArray<FVector>&                      geopositions = geopositions_by_style[i];
 			{
 				FilterGeoPositionsByDistanceToOrigin::InPlace(geopositions, geo_origin, self->Radius);
 			}
@@ -467,9 +438,8 @@ void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
 				UE_LOG(
 					LogCesiumStreetlights,
 					Log,
-					TEXT("Would spawn %d streetlights for style %d"),
-					geopositions.Num(),
-					i
+					TEXT("Would spawn %d streetlights"),
+					geopositions.Num()
 				);
 			}
 		}
@@ -477,10 +447,26 @@ void ACesiumStreetlightsGeodeskVolumeActor::DryRun()
 		self->Modify();
 	};
 
-	AsyncTask(
-		ENamedThreads::Type::AnyThread,
-		generate_lambda
-	);
+
+	FCesiumStreetlightsRequestConfiguration request_configuration;
+	{
+		request_configuration.Origin  = FVector2d(geo_origin.X, geo_origin.Y);
+		request_configuration.Radius  = Radius;
+		request_configuration.OsmTags = StyleConfiguration.Tags;
+	}
+
+	auto on_results_lambda = [self=this, generate_lambda](FCesiumStreetlightsRequestResult&& result) mutable
+	{
+		AsyncTask(
+			ENamedThreads::Type::AnyThread,
+			[self, result = std::move(result), generate_lambda]() mutable
+			{
+				generate_lambda(std::move(result));
+			}
+		);
+	};
+
+	data_source->AsyncRequest(ENamedThreads::Type::AnyThread, request_configuration, on_results_lambda);
 }
 
 void ACesiumStreetlightsGeodeskVolumeActor::Reset()
@@ -500,23 +486,26 @@ void ACesiumStreetlightsGeodeskVolumeActor::Reset()
 
 void ACesiumStreetlightsGeodeskVolumeActor::UpdateCurrentLightsStyle()
 {
-	if (not StyleConfigurations.IsEmpty())
+	for (UCesiumStreetlightComponent* light : SpawnedStreetlights)
 	{
-		for (UCesiumStreetlightComponent* light : SpawnedStreetlights)
+		if (light)
 		{
-			if (light)
-			{
-				UE_LOG(
-					LogCesiumStreetlights,
-					Log,
-					TEXT("Updating style of streetlight component %s"),
-					*light->GetName()
-				);
-				light->ApplyStyle(StyleConfigurations[0], ACesiumGeoreference::GetDefaultGeoreference(GetWorld()));
-			}
+			UE_LOG(
+				LogCesiumStreetlights,
+				Log,
+				TEXT("Updating style of streetlight component %s"),
+				*light->GetName()
+			);
+			light->ApplyStyle(StyleConfiguration, ACesiumGeoreference::GetDefaultGeoreference(GetWorld()));
 		}
 	}
+
 	Modify();
+}
+
+class UCesiumStreetlightsDataSource* ACesiumStreetlightsGeodeskVolumeActor::FindDataSourceComponent() const
+{
+	return Cast<UCesiumStreetlightsDataSource>(GetComponentByClass(UCesiumStreetlightsDataSource::StaticClass()));
 }
 
 UCesiumStreetlightComponent* ACesiumStreetlightsGeodeskVolumeActor::SpawnStreetlightComponent() const
@@ -531,82 +520,4 @@ UCesiumStreetlightComponent* ACesiumStreetlightsGeodeskVolumeActor::SpawnStreetl
 	}
 
 	return streetlight_component;
-}
-
-TArray<TArray<FVector>> ACesiumStreetlightsGeodeskVolumeActor::LoadGeoPositionsFromGolFile(FGeodeskRequestsConfiguration requests)
-{
-	TArray<TArray<FVector>> geo_positions;
-
-	if (requests.GolFilepath.IsEmpty())
-	{
-		UE_LOG(LogCesiumStreetlights, Warning, TEXT("No .gol file path specified."));
-		return geo_positions;
-	}
-
-	if (not FPaths::FileExists(requests.GolFilepath))
-	{
-		UE_LOG(
-			LogCesiumStreetlights,
-			Warning,
-			TEXT("The specified .gol file does not exist: %s"),
-			*requests.GolFilepath
-		);
-		return geo_positions;
-	}
-
-	try
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UCesiumStreetlightsGeodeskVolumeComponent::LoadGeoPositionsFromGolFile);
-
-		const std::string gol_filepath_std = TCHAR_TO_UTF8(*requests.GolFilepath);
-		geodesk::Features world(gol_filepath_std.c_str());
-
-		geo_positions.Reserve(requests.GoqlRequests.Num());
-		for (const FString& request : requests.GoqlRequests)
-		{
-			geo_positions.Emplace();
-
-			UE_LOG(
-				LogCesiumStreetlights,
-				Log,
-				TEXT("Processing Geodesk request: %s"),
-				*request
-			);
-			if (request.IsEmpty()) { continue; }
-
-			const std::string request_std = TCHAR_TO_UTF8(*request);
-			geodesk::Features features    = world(request_std.c_str());
-			if (requests.OriginAndRadius.IsSet())
-			{
-				const auto [origin, radius] = requests.OriginAndRadius.GetValue();
-				features                    = world.maxMetersFromLonLat(radius, origin.X, origin.Y);
-			}
-			UE_LOG(
-				LogCesiumStreetlights,
-				Log,
-				TEXT("Found %llu features for request: %s"),
-				features.count(),
-				*request
-			);
-			ParsePointsFromFeatures(
-				features,
-				[&](FVector position)
-				{
-					geo_positions.Last().Add(std::move(position));
-				}
-			);
-		}
-	}
-	catch (const std::exception& e)
-	{
-		UE_LOG(
-			LogCesiumStreetlights,
-			Error,
-			TEXT("Exception while loading/parsing .gol file '%s': %s"),
-			*requests.GolFilepath,
-			*FString(e.what())
-		);
-	}
-
-	return geo_positions;
 }
